@@ -17,18 +17,17 @@ sources = {
 
 mega_lista = {
     "name": "Hydra Global Masters - All-in-One Source",
-    "description": f"Hub for FitGirl, Dodi, SteamRip and more. Updated: {datetime.now().strftime('%Y-%m-%d')}",
+    "description": f"Updated: {datetime.now().strftime('%Y-%m-%d')}",
     "downloads": []
 }
 
 for name, url in sources.items():
     try:
-        data = requests.get(url, timeout=15).json()
+        data = requests.get(url, timeout=30).json()
         games = data.get("downloads", []) or data.get("games", [])
         mega_lista["downloads"].extend(games)
-        print(f"✅ {name} added!")
     except:
-        print(f"❌ Error on {name}")
+        pass
 
-with open("mega_fontes.json", "w", encoding="utf-8") as f:
+with open("Hydra Global Masters.json", "w", encoding="utf-8") as f:
     json.dump(mega_lista, f, indent=2, ensure_ascii=False)
