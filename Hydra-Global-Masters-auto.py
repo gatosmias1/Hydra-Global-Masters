@@ -29,5 +29,5 @@ for name, url in sources.items():
     except:
         pass
 
-with open("Hydra Global Masters.json", "w", encoding="utf-8") as f:
+with open("Hydra-Global-Masters.json", "w", encoding="utf-8") as f:
     json.dump(mega_lista, f, indent=2, ensure_ascii=False)
