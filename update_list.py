@@ -8,9 +8,9 @@ sources = {
     "OnlineFix": "https://hydralinks.cloud/sources/onlinefix.json",
     "Dodi": "https://hydralinks.cloud/sources/dodi.json",
     "ByXatab": "https://hydralinks.cloud/sources/xatab.json",
-    "FreeGOG": "https://hydralinks.pages.dev/sources/gog.json",
-    "AtopGames": "https://hydralinks.pages.dev/sources/atop-games.json",
-    "Empress": "https://hydralinks.pages.dev/sources/empress.json",
+    "FreeGOG": "https://hydralinks.cloud/sources/gog.json",
+    "AtopGames": "https://hydralinks.cloud/sources/atop-games.json",
+    "Empress": "https://hydralinks.cloud/sources/empress.json",
     "TinyRepacks": "https://hydralinks.cloud/sources/tinyrepacks.json",
     "KaOsKrew": "https://hydralinks.cloud/sources/kaoskrew.json"
 }
