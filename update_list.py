@@ -3,17 +3,18 @@ import json
 from datetime import datetime
 
 sources = {
-    "FitGirl": "https://hydralinks.pages.dev/sources/fitgirl.json",
-    "SteamRip": "https://hydralinks.pages.dev/sources/steamrip.json",
-    "OnlineFix": "https://hydralinks.pages.dev/sources/onlinefix.json",
-    "Dodi": "https://hydralinks.pages.dev/sources/dodi.json",
-    "ByXatab": "https://hydralinks.pages.dev/sources/xatab.json",
+    "FitGirl": "https://hydralinks.cloud/sources/fitgirl.json",
+    "SteamRip": "https://hydralinks.cloud/sources/steamrip.json",
+    "OnlineFix": "https://hydralinks.cloud/sources/onlinefix.json",
+    "Dodi": "https://hydralinks.cloud/sources/dodi.json",
+    "ByXatab": "https://hydralinks.cloud/sources/xatab.json",
     "FreeGOG": "https://hydralinks.pages.dev/sources/gog.json",
     "AtopGames": "https://hydralinks.pages.dev/sources/atop-games.json",
     "Empress": "https://hydralinks.pages.dev/sources/empress.json",
-    "TinyRepacks": "https://hydralinks.pages.dev/sources/tinyrepacks.json",
-    "KaOsKrew": "https://hydralinks.pages.dev/sources/kaoskrew.json"
+    "TinyRepacks": "https://hydralinks.cloud/sources/tinyrepacks.json",
+    "KaOsKrew": "https://hydralinks.cloud/sources/kaoskrew.json"
 }
+
 
 mega_lista = {
     "name": "Hydra Global Masters - All-in-One Source",
