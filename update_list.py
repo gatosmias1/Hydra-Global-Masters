@@ -2,17 +2,25 @@ import requests
 import json
 from datetime import datetime
 
+# URLs via GitHub em vez de hydralinks.cloud
+# hydralinks.cloud bloqueia IPs do GitHub Actions com 403/429
+BASE = "https://raw.githubusercontent.com/ArnamentGames/HydraLinks/refs/heads/main"
+
 sources = {
-    "FitGirl":     "https://hydralinks.cloud/sources/fitgirl.json",
-    "SteamRip":    "https://hydralinks.cloud/sources/steamrip.json",
-    "OnlineFix":   "https://hydralinks.cloud/sources/onlinefix.json",
-    "Dodi":        "https://hydralinks.cloud/sources/dodi.json",
-    "ByXatab":     "https://hydralinks.cloud/sources/xatab.json",
-    "FreeGOG":     "https://hydralinks.cloud/sources/gog.json",
-    "AtopGames":   "https://hydralinks.cloud/sources/atop-games.json",
-    "Empress":     "https://hydralinks.cloud/sources/empress.json",
-    "TinyRepacks": "https://hydralinks.cloud/sources/tinyrepacks.json",
-    "KaOsKrew":    "https://hydralinks.cloud/sources/kaoskrew.json"
+    "FitGirl":     f"{BASE}/fitgirl.json",
+    "SteamRip":    f"{BASE}/steamrip.json",
+    "OnlineFix":   f"{BASE}/onlinefix.json",
+    "Dodi":        f"{BASE}/dodi.json",
+    "ByXatab":     f"{BASE}/xatab.json",
+    "FreeGOG":     f"{BASE}/gog.json",
+    "AtopGames":   f"{BASE}/atop-games.json",
+    "Empress":     f"{BASE}/empress.json",
+    "TinyRepacks": f"{BASE}/tinyrepacks.json",
+    "KaOsKrew":    f"{BASE}/kaoskrew.json",
+}
+
+headers = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
 }
 
 mega_lista = {
@@ -21,37 +29,58 @@ mega_lista = {
     "downloads": []
 }
 
+erros = []
+
 for name, url in sources.items():
     try:
-        response = requests.get(url, timeout=30)
-        response.raise_for_status()  # lança erro se status != 200
+        response = requests.get(url, timeout=30, headers=headers)
+        response.raise_for_status()
         data = response.json()
 
-        # Pega "downloads" ou "games", sem usar `or` perigoso
         if "downloads" in data:
             games = data["downloads"]
         elif "games" in data:
             games = data["games"]
         else:
-            print(f"[AVISO] {name}: nenhuma chave conhecida encontrada. Keys: {list(data.keys())}")
+            msg = f"[AVISO] {name}: chaves desconhecidas -> {list(data.keys())}"
+            print(msg)
+            erros.append(msg)
             games = []
 
-        print(f"[OK] {name}: {len(games)} jogos adicionados")
+        print(f"[OK] {name}: {len(games)} jogos")
         mega_lista["downloads"].extend(games)
 
     except requests.exceptions.Timeout:
-        print(f"[ERRO] {name}: timeout ao conectar")
+        msg = f"[ERRO] {name}: timeout"
+        print(msg)
+        erros.append(msg)
     except requests.exceptions.HTTPError as e:
-        print(f"[ERRO] {name}: HTTP {e.response.status_code}")
-    except requests.exceptions.ConnectionError:
-        print(f"[ERRO] {name}: falha de conexão")
+        msg = f"[ERRO] {name}: HTTP {e.response.status_code} - {e.response.reason}"
+        print(msg)
+        erros.append(msg)
+    except requests.exceptions.ConnectionError as e:
+        msg = f"[ERRO] {name}: falha de conexão - {e}"
+        print(msg)
+        erros.append(msg)
     except json.JSONDecodeError:
-        print(f"[ERRO] {name}: resposta não é um JSON válido")
+        msg = f"[ERRO] {name}: resposta não é JSON válido"
+        print(msg)
+        erros.append(msg)
     except Exception as e:
-        print(f"[ERRO] {name}: erro inesperado - {e}")
+        msg = f"[ERRO] {name}: erro inesperado - {type(e).__name__}: {e}"
+        print(msg)
+        erros.append(msg)
 
 total = len(mega_lista["downloads"])
 print(f"\nTotal: {total} jogos coletados")
+
+if erros:
+    print(f"\nFontes com erro ({len(erros)}):")
+    for e in erros:
+        print(f"  {e}")
+
+if total == 0:
+    raise SystemExit("ERRO CRÍTICO: Nenhum jogo coletado. Verifique os erros acima.")
 
 with open("Hydra-Global-Masters.json", "w", encoding="utf-8") as f:
     json.dump(mega_lista, f, indent=2, ensure_ascii=False)
