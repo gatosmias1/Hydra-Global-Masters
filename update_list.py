@@ -1,88 +1,139 @@
-import requests
 import json
-from datetime import datetime
+from datetime import datetime, timezone
+from pathlib import Path
 
-# URLs via GitHub em vez de hydralinks.cloud
-# hydralinks.cloud bloqueia IPs do GitHub Actions com 403/429
-BASE = "https://raw.githubusercontent.com/ArnamentGames/HydraLinks/refs/heads/main"
+import requests
+from requests.adapters import HTTPAdapter
+from urllib3.util.retry import Retry
 
-sources = {
-    "FitGirl":     f"{BASE}/fitgirl.json",
-    "SteamRip":    f"{BASE}/steamrip.json",
-    "OnlineFix":   f"{BASE}/onlinefix.json",
-    "Dodi":        f"{BASE}/dodi.json",
-    "ByXatab":     f"{BASE}/xatab.json",
-    "FreeGOG":     f"{BASE}/gog.json",
-    "AtopGames":   f"{BASE}/atop-games.json",
-    "Empress":     f"{BASE}/empress.json",
+BASE = "https://raw.githubusercontent.com/ArnamentGames/HydraLinks/main"
+
+SOURCES = {
+    "FitGirl": f"{BASE}/fitgirl.json",
+    "SteamRip": f"{BASE}/steamrip.json",
+    "OnlineFix": f"{BASE}/onlinefix.json",
+    "Dodi": f"{BASE}/dodi.json",
+    "ByXatab": f"{BASE}/xatab.json",
+    "FreeGOG": f"{BASE}/gog.json",
+    "AtopGames": f"{BASE}/atop-games.json",
+    "Empress": f"{BASE}/empress.json",
     "TinyRepacks": f"{BASE}/tinyrepacks.json",
-    "KaOsKrew":    f"{BASE}/kaoskrew.json",
+    "KaOsKrew": f"{BASE}/kaoskrew.json",
 }
 
-headers = {
-    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64)"
-}
+HEADERS = {"User-Agent": "Mozilla/5.0"}
 
-mega_lista = {
-    "name": "Hydra Global Masters - All-in-One Source",
-    "description": f"Updated: {datetime.now().strftime('%Y-%m-%d')}",
-    "downloads": []
-}
 
-erros = []
+def build_session() -> requests.Session:
+    retry = Retry(
+        total=6,
+        connect=6,
+        read=6,
+        status=6,
+        backoff_factor=1.2,
+        status_forcelist=(403, 408, 425, 429, 500, 502, 503, 504),
+        allowed_methods=("GET",),
+        raise_on_status=False,
+    )
+    adapter = HTTPAdapter(max_retries=retry, pool_connections=10, pool_maxsize=10)
+    s = requests.Session()
+    s.headers.update(HEADERS)
+    s.mount("https://", adapter)
+    s.mount("http://", adapter)
+    return s
 
-for name, url in sources.items():
-    try:
-        response = requests.get(url, timeout=30, headers=headers)
-        response.raise_for_status()
-        data = response.json()
 
-        if "downloads" in data:
-            games = data["downloads"]
-        elif "games" in data:
-            games = data["games"]
-        else:
-            msg = f"[AVISO] {name}: chaves desconhecidas -> {list(data.keys())}"
+def extract_games(source_name: str, data: dict) -> list[dict]:
+    if isinstance(data, dict) and isinstance(data.get("downloads"), list):
+        return data["downloads"]
+    if isinstance(data, dict) and isinstance(data.get("games"), list):
+        return data["games"]
+    raise KeyError(f"{source_name}: formato inesperado")
+
+
+def normalize_item(item: dict) -> dict:
+    title = item.get("title")
+    uris = item.get("uris")
+    upload_date = item.get("uploadDate")
+    file_size = item.get("fileSize")
+
+    if not isinstance(title, str) or not title.strip():
+        raise ValueError("title inválido")
+    if not isinstance(uris, list) or not uris or not all(isinstance(u, str) and u.strip() for u in uris):
+        raise ValueError("uris inválido")
+
+    out = {
+        "title": title.strip(),
+        "uris": [u.strip() for u in uris if u.strip()],
+        "uploadDate": upload_date,
+        "fileSize": file_size,
+    }
+    return out
+
+
+def dedupe(items: list[dict]) -> list[dict]:
+    seen = set()
+    out = []
+    for it in items:
+        key = (it.get("title"), tuple(sorted(it.get("uris", []))))
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(it)
+    out.sort(key=lambda x: (str(x.get("title", "")).casefold(), str(x.get("uploadDate", ""))))
+    return out
+
+
+def main() -> None:
+    session = build_session()
+    collected: list[dict] = []
+    errors: list[str] = []
+
+    for name, url in SOURCES.items():
+        try:
+            r = session.get(url, timeout=40)
+            if r.status_code >= 400:
+                raise requests.HTTPError(f"HTTP {r.status_code}")
+            data = r.json()
+            games = extract_games(name, data)
+            ok = 0
+            for g in games:
+                if not isinstance(g, dict):
+                    continue
+                try:
+                    collected.append(normalize_item(g))
+                    ok += 1
+                except Exception:
+                    continue
+            print(f"[OK] {name}: {ok} jogos")
+        except Exception as e:
+            msg = f"[ERRO] {name}: {type(e).__name__}: {e}"
             print(msg)
-            erros.append(msg)
-            games = []
+            errors.append(msg)
 
-        print(f"[OK] {name}: {len(games)} jogos")
-        mega_lista["downloads"].extend(games)
+    collected = dedupe(collected)
 
-    except requests.exceptions.Timeout:
-        msg = f"[ERRO] {name}: timeout"
-        print(msg)
-        erros.append(msg)
-    except requests.exceptions.HTTPError as e:
-        msg = f"[ERRO] {name}: HTTP {e.response.status_code} - {e.response.reason}"
-        print(msg)
-        erros.append(msg)
-    except requests.exceptions.ConnectionError as e:
-        msg = f"[ERRO] {name}: falha de conexão - {e}"
-        print(msg)
-        erros.append(msg)
-    except json.JSONDecodeError:
-        msg = f"[ERRO] {name}: resposta não é JSON válido"
-        print(msg)
-        erros.append(msg)
-    except Exception as e:
-        msg = f"[ERRO] {name}: erro inesperado - {type(e).__name__}: {e}"
-        print(msg)
-        erros.append(msg)
+    out = {
+        "name": "Hydra Global Masters - All-in-One Source",
+        "description": f"Updated: {datetime.now(timezone.utc).strftime('%Y-%m-%d')} (UTC)",
+        "downloads": collected,
+    }
 
-total = len(mega_lista["downloads"])
-print(f"\nTotal: {total} jogos coletados")
+    total = len(out["downloads"])
+    print(f"\nTotal: {total} jogos (após deduplicação)")
 
-if erros:
-    print(f"\nFontes com erro ({len(erros)}):")
-    for e in erros:
-        print(f"  {e}")
+    if errors:
+        print(f"\nFontes com erro ({len(errors)}):")
+        for e in errors:
+            print(f"  {e}")
 
-if total == 0:
-    raise SystemExit("ERRO CRÍTICO: Nenhum jogo coletado. Verifique os erros acima.")
+    if total == 0:
+        raise SystemExit("ERRO CRÍTICO: Nenhum jogo coletado.")
 
-with open("Hydra-Global-Masters.json", "w", encoding="utf-8") as f:
-    json.dump(mega_lista, f, indent=2, ensure_ascii=False)
+    output_path = Path(__file__).with_name("Hydra-Global-Masters.json")
+    output_path.write_text(json.dumps(out, indent=2, ensure_ascii=False), encoding="utf-8")
+    print(f"Arquivo salvo: {output_path.name}")
 
-print("Arquivo salvo: Hydra-Global-Masters.json")
+
+if __name__ == "__main__":
+    main()
